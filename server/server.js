@@ -39,7 +39,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date().t
 app.use('/pdfs', express.static(path.join(__dirname, 'public', 'pdfs')));
 
 // ---- Serve the frontend (the whole app is one `npm start` away) ----
-const FRONTEND_DIR = path.join(__dirname, '..');
+const FRONTEND_DIR = path.join(__dirname, '..', 'frontend');
 app.use(express.static(FRONTEND_DIR));
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/')) return next();

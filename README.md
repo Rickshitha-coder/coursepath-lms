@@ -23,12 +23,13 @@ database.
 
 ```
 coursepath-lms/
-├── index.html, login.html, register.html, ...   Vanilla-JS frontend pages (primary app)
-├── css/styles.css                                All styles
-├── js/
-│   ├── api.js            Real REST + Socket.IO client (talks to /server)
-│   ├── ui.js              Navbar, toasts, formatting helpers
-│   └── validation.js      Client-side form validation
+├── frontend/                                       Vanilla-JS frontend (primary app)
+│   ├── index.html, login.html, register.html, ...  17 pages
+│   ├── css/styles.css                              All styles
+│   └── js/
+│       ├── api.js            Real REST + Socket.IO client (talks to /server)
+│       ├── ui.js              Navbar, toasts, formatting helpers
+│       └── validation.js      Client-side form validation
 ├── client/                                        React frontend (same live backend)
 │   ├── src/pages/          Home, Login, Register, Dashboard, Courses
 │   ├── src/components/     Navbar, Footer, CourseCard, ProtectedRoute
@@ -146,10 +147,10 @@ folder/file, e.g. `https://github.com/<you>/<repo>/tree/main/server/models`.
 | # | Task | Where it's implemented |
 | --- | --- | --- |
 | 1 | GitHub repo & documentation | This repository + [`README.md`](README.md) (overview, features, tech stack, setup) |
-| 2 | Application structure (HTML) | [`index.html`](index.html), [`login.html`](login.html), [`register.html`](register.html), [`student-dashboard.html`](student-dashboard.html), + 13 more pages, all using semantic `<header>/<nav>/<main>/<section>/<footer>` |
-| 3 | CSS & responsive design | [`css/styles.css`](css/styles.css) — Flexbox/Grid layouts, media queries for mobile/tablet/desktop |
-| 4 | Client-side validation & dynamic nav | [`js/validation.js`](js/validation.js), dynamic login/logout nav in [`js/ui.js`](js/ui.js) |
-| 5 | Reusable JS modules & state | [`js/api.js`](js/api.js) (API calls, auth state), [`js/ui.js`](js/ui.js), [`js/validation.js`](js/validation.js) — ES6 modules |
+| 2 | Application structure (HTML) | [`frontend/index.html`](frontend/index.html), [`frontend/login.html`](frontend/login.html), [`frontend/register.html`](frontend/register.html), [`frontend/student-dashboard.html`](frontend/student-dashboard.html), + 13 more pages, all using semantic `<header>/<nav>/<main>/<section>/<footer>` |
+| 3 | CSS & responsive design | [`frontend/css/styles.css`](frontend/css/styles.css) — Flexbox/Grid layouts, media queries for mobile/tablet/desktop |
+| 4 | Client-side validation & dynamic nav | [`frontend/js/validation.js`](frontend/js/validation.js), dynamic login/logout nav in [`frontend/js/ui.js`](frontend/js/ui.js) |
+| 5 | Reusable JS modules & state | [`frontend/js/api.js`](frontend/js/api.js) (API calls, auth state), [`frontend/js/ui.js`](frontend/js/ui.js), [`frontend/js/validation.js`](frontend/js/validation.js) — ES6 modules |
 | 6 | React components & routing | [`client/src/App.jsx`](client/src/App.jsx) (routes), [`client/src/pages/`](client/src/pages), [`client/src/components/`](client/src/components) (Navbar, Footer, CourseCard) |
 | 7 | Frontend ↔ API with Context state | [`client/src/context/AuthContext.jsx`](client/src/context/AuthContext.jsx), [`client/src/context/CourseContext.jsx`](client/src/context/CourseContext.jsx), [`client/src/api/axios.js`](client/src/api/axios.js) — connected to the real backend below (no mock layer needed since the real API was built) |
 | 8 | Backend server & architecture | [`server/server.js`](server/server.js), [`server/config/db.js`](server/config/db.js), MVC folders: [`server/routes/`](server/routes), [`server/controllers/`](server/controllers), [`server/models/`](server/models) |
@@ -157,7 +158,7 @@ folder/file, e.g. `https://github.com/<you>/<repo>/tree/main/server/models`.
 | 10 | JWT auth & protected routes | [`server/middleware/auth.js`](server/middleware/auth.js), [`server/utils/token.js`](server/utils/token.js) |
 | 11 | Database schema | [`server/models/`](server/models) (User, Course, Enrollment, Progress, Notification, Message) |
 | 12 | DB integration & CRUD | [`server/controllers/courseController.js`](server/controllers/courseController.js), [`server/controllers/enrollmentController.js`](server/controllers/enrollmentController.js), [`server/controllers/adminController.js`](server/controllers/adminController.js) |
-| 13 | Real-time notifications/chat | [`server/sockets/index.js`](server/sockets/index.js), [`server/routes/messageRoutes.js`](server/routes/messageRoutes.js), [`js/api.js`](js/api.js) (Socket.IO client) |
+| 13 | Real-time notifications/chat | [`server/sockets/index.js`](server/sockets/index.js), [`server/routes/messageRoutes.js`](server/routes/messageRoutes.js), [`frontend/js/api.js`](frontend/js/api.js) (Socket.IO client) |
 | 14 | Security & error handling | bcrypt hashing in [`server/controllers/authController.js`](server/controllers/authController.js), [`server/middleware/errorHandler.js`](server/middleware/errorHandler.js), `.env`-based secrets |
 | 15 | Deployment & testing | See "Going further" above for deployment steps; `server/server.js` serves frontend + API from one process, ready to deploy as-is |
 
