@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage students — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin-students">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title"><div><span class="eyebrow">Admin — Student Management</span><h2 style="margin-top:4px;">Students</h2></div></div>
+      <div class="card">
+        <div class="table-scroll">
+        <table class="data">
+          <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Enrollments</th><th>Avg. progress</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const admin = Api.requireRole('admin');
+    if (!admin) return;
+
+    async function render() {
+      const students = (await Api.listStudents()).data;
+      const rows = document.getElementById('rows');
+      if (!students.length) { rows.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center; padding:30px;">No students have registered yet.</td></tr>`; return; }
+
+      const parts = await Promise.all(students.map(async s => {
+        const enrollments = (await Api.myEnrollments(s.id)).data;
+        const progressAll = (await Api.allProgressForStudent(s.id)).data;
+        const avg = progressAll.length ? Math.round(progressAll.reduce((a, p) => a + p.percentage, 0) / progressAll.length) : 0;
+        return `
+        <tr>
+          <td>${UI.escapeHtml(s.name)}</td>
+          <td>${UI.escapeHtml(s.email)}</td>
+          <td>${UI.escapeHtml(s.department || '—')}</td>
+          <td>${enrollments.length}</td>
+          <td><div class="progress-row" style="max-width:160px;"><div class="progress-track"><div class="progress-fill" style="width:${avg}%;"></div></div><span class="progress-pct">${avg}%</span></div></td>
+          <td><button class="btn btn-danger btn-sm" data-del="${s.id}">Remove</button></td>
+        </tr>`;
+      }));
+      rows.innerHTML = parts.join('');
+      rows.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async () => {
+        if (!confirm('Remove this student? Their enrollments and progress will be deleted too.')) return;
+        await Api.deleteStudent(btn.dataset.del);
+        UI.toast('Student removed.');
+        render();
+      }));
+    }
+    render();
+  })();
+</script>
+</body>
+</html>

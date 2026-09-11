@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin dashboard — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin-dashboard">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title">
+        <div><span class="eyebrow">Admin Dashboard</span><h2 style="margin-top:4px;" id="greeting">Admin overview</h2></div>
+        <a href="add-course.html" class="btn btn-amber">Add course</a>
+      </div>
+
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <div class="section-title" style="margin-top:8px;"><h2>Completion by course</h2></div>
+      <div class="card">
+        <div class="table-scroll">
+        <table class="data" id="course-table">
+          <thead><tr><th>Course</th><th>Enrolled</th><th>Avg. progress</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const admin = Api.requireRole('admin');
+    if (!admin) return;
+    document.getElementById('greeting').textContent = `Welcome, ${admin.name.split(' ')[0]}`;
+
+    const stats = (await Api.adminStats()).data;
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Total students</div><div class="stat-value">${stats.totalStudents}</div></div>
+      <div class="stat-card"><div class="stat-label">Total courses</div><div class="stat-value">${stats.totalCourses}</div></div>
+      <div class="stat-card"><div class="stat-label">Active enrollments</div><div class="stat-value">${stats.activeEnrollments}</div></div>
+      <div class="stat-card accent"><div class="stat-label">Completion reports</div><div class="stat-value">${stats.completionReports}</div></div>`;
+
+    const tbody = document.querySelector('#course-table tbody');
+    if (!stats.perCourse.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="muted" style="text-align:center; padding:30px;">No courses yet.</td></tr>`;
+    } else {
+      tbody.innerHTML = stats.perCourse.map(c => `
+        <tr>
+          <td>${UI.escapeHtml(c.name)}</td>
+          <td>${c.enrolled}</td>
+          <td><div class="progress-row" style="max-width:200px;"><div class="progress-track"><div class="progress-fill" style="width:${c.avgProgress}%;"></div></div><span class="progress-pct">${c.avgProgress}%</span></div></td>
+        </tr>`).join('');
+    }
+  })();
+</script>
+</body>
+</html>

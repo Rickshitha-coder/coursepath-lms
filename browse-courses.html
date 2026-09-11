@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browse courses — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="browse-courses">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">Course Catalog</span>
+          <h2 style="margin-top:4px;">Browse courses</h2>
+        </div>
+      </div>
+
+      <div class="flex gap-12" style="margin-bottom:24px; flex-wrap:wrap;">
+        <input type="text" id="search-input" placeholder="Search by course or instructor…" style="flex:1; min-width:220px; padding:11px 14px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+        <select id="category-select" style="padding:11px 14px; border:1px solid var(--line); border-radius:8px; font-family:inherit;">
+          <option value="all">All categories</option>
+        </select>
+      </div>
+
+      <div class="course-grid" id="course-grid"></div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  const user = Api.currentUser();
+
+  async function render() {
+    const q = document.getElementById('search-input').value.trim();
+    const category = document.getElementById('category-select').value;
+    const courses = (await Api.listCourses({ q, category })).data;
+    const enrolledIds = user && user.role === 'student' ? (await Api.myEnrollments(user.id)).data.map(e => e.courseId) : [];
+
+    const grid = document.getElementById('course-grid');
+    if (!courses.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>No courses match your search</h3><p>Try a different keyword or category.</p></div>`;
+      return;
+    }
+    grid.innerHTML = courses.map(c => {
+      const enrolled = enrolledIds.includes(c.id);
+      return `
+      <div class="course-card">
+        <div class="cc-top"><span class="cc-cat">${UI.escapeHtml(c.category)}</span><h3>${UI.escapeHtml(c.name)}</h3></div>
+        <div class="cc-body">
+          <p>${UI.escapeHtml(c.description)}</p>
+          <div class="cc-meta"><span>${c.duration} weeks</span><span>${c.modules.length} modules</span></div>
+        </div>
+        <div class="cc-foot">
+          ${enrolled ? '<span class="badge badge-enrolled">Enrolled</span>' : `<span class="muted" style="font-size:.82rem;">${UI.escapeHtml(c.instructor)}</span>`}
+          <a href="course-details.html?id=${c.id}" class="btn btn-outline btn-sm">${enrolled ? 'Continue' : 'View course'}</a>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  (async () => {
+    const courses = (await Api.listCourses()).data;
+    const cats = [...new Set(courses.map(c => c.category))];
+    const sel = document.getElementById('category-select');
+    cats.forEach(cat => sel.insertAdjacentHTML('beforeend', `<option value="${UI.escapeHtml(cat)}">${UI.escapeHtml(cat)}</option>`));
+    render();
+  })();
+
+  document.getElementById('search-input').addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(render, 200); });
+  document.getElementById('category-select').addEventListener('change', render);
+</script>
+</body>
+</html>

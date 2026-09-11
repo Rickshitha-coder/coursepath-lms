@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course details — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="course-details">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container" id="content" style="max-width:840px;">Loading…</div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const id = new URLSearchParams(location.search).get('id');
+    const res = await Api.getCourse(id);
+    const content = document.getElementById('content');
+    if (!res.ok) { content.innerHTML = `<div class="empty-state"><h3>Course not found</h3><a href="browse-courses.html" class="btn btn-primary mt-16">Back to courses</a></div>`; return; }
+    const c = res.data;
+    const user = Api.currentUser();
+    const enrolled = user && user.role === 'student' ? await Api.isEnrolled(user.id, c.id) : false;
+
+    content.innerHTML = `
+      <span class="eyebrow">${UI.escapeHtml(c.category)}</span>
+      <h1 style="margin-top:6px;">${UI.escapeHtml(c.name)}</h1>
+      <p class="muted" style="font-size:1rem; max-width:60ch;">${UI.escapeHtml(c.description)}</p>
+      <div class="flex gap-16 mt-16" style="flex-wrap:wrap;">
+        <div class="card card-pad" style="flex:1; min-width:140px;"><div class="stat-label" style="font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim);">Instructor</div><div style="font-weight:600; margin-top:4px;">${UI.escapeHtml(c.instructor)}</div></div>
+        <div class="card card-pad" style="flex:1; min-width:140px;"><div class="stat-label" style="font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim);">Duration</div><div style="font-weight:600; margin-top:4px;">${c.duration} weeks</div></div>
+        <div class="card card-pad" style="flex:1; min-width:140px;"><div class="stat-label" style="font-family:var(--font-mono); font-size:.72rem; color:var(--text-dim);">Modules</div><div style="font-weight:600; margin-top:4px;">${c.modules.length}</div></div>
+      </div>
+
+      ${c.pdfPath ? `<div class="mt-16"><a href="${c.pdfPath}" target="_blank" class="btn btn-outline btn-sm">&#128196; Download course handout (PDF)</a></div>` : ''}
+
+      <div class="section-title mt-32"><h2>Syllabus</h2></div>
+      <div class="card card-pad">
+        ${c.modules.map((m, i) => `
+          <div class="flex items-center gap-12" style="padding:10px 0; ${i < c.modules.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
+            <span class="badge" style="background:var(--paper-dim); color:var(--text-dim);">${String(i + 1).padStart(2, '0')}</span>
+            <span>${UI.escapeHtml(m.title)}</span>
+          </div>`).join('')}
+      </div>
+
+      <div class="mt-32" id="enroll-mount"></div>
+    `;
+
+    const mount = document.getElementById('enroll-mount');
+    if (!user) {
+      mount.innerHTML = `<a href="login.html" class="btn btn-primary">Log in to enroll</a>`;
+    } else if (user.role === 'admin') {
+      mount.innerHTML = `<a href="admin-courses.html" class="btn btn-outline">Manage in admin panel</a>`;
+    } else if (enrolled) {
+      mount.innerHTML = `<span class="badge badge-enrolled" style="padding:8px 16px; font-size:.85rem;">You're enrolled</span> <a href="course-content.html?courseId=${c.id}" class="btn btn-primary" style="margin-left:12px;">Go to course content</a>`;
+    } else {
+      mount.innerHTML = `<button class="btn btn-amber" id="enroll-btn">Enroll in this course</button>`;
+      document.getElementById('enroll-btn').addEventListener('click', async (e) => {
+        e.target.disabled = true; e.target.textContent = 'Enrolling…';
+        const r = await Api.enroll(user.id, c.id);
+        if (!r.ok) { UI.toast(r.error); e.target.disabled = false; e.target.textContent = 'Enroll in this course'; return; }
+        UI.toast('Enrolled! Redirecting to your course…');
+        setTimeout(() => window.location.href = `course-content.html?courseId=${c.id}`, 700);
+      });
+    }
+  })();
+</script>
+</body>
+</html>

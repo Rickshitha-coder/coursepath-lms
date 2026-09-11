@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course content — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="my-courses">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container" id="wrap">Loading…</div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const user = Api.requireRole('student');
+    if (!user) return;
+
+    const params = new URLSearchParams(location.search);
+    const courseId = params.get('courseId');
+    const courseRes = await Api.getCourse(courseId);
+    const wrap = document.getElementById('wrap');
+    if (!courseRes.ok) { wrap.innerHTML = `<div class="empty-state"><h3>Course not found</h3></div>`; return; }
+    const course = courseRes.data;
+
+    const enrolled = await Api.isEnrolled(user.id, courseId);
+    if (!enrolled) { wrap.innerHTML = `<div class="empty-state"><h3>You're not enrolled in this course yet</h3><a href="course-details.html?id=${courseId}" class="btn btn-primary mt-16">View course &amp; enroll</a></div>`; return; }
+
+    let progress = (await Api.getProgress(user.id, courseId)).data;
+    let moduleId = params.get('moduleId') || (course.modules.find(m => !progress.completedModules.includes(m.id)) || course.modules[0]).id;
+
+    function renderSidebar() {
+      return `<ul class="module-list">${course.modules.map(m => `
+        <li><a href="course-content.html?courseId=${courseId}&moduleId=${m.id}" class="${m.id === moduleId ? 'active' : ''}">
+          <span class="mod-check ${progress.completedModules.includes(m.id) ? 'done' : ''}"></span>
+          ${UI.escapeHtml(m.title)}
+        </a></li>`).join('')}</ul>`;
+    }
+
+    function renderMain() {
+      const mod = course.modules.find(m => m.id === moduleId);
+      const idx = course.modules.findIndex(m => m.id === moduleId);
+      const isDone = progress.completedModules.includes(mod.id);
+      const next = course.modules[idx + 1];
+      const materials = mod.materials || [];
+      return `
+        <span class="eyebrow">Module ${idx + 1} of ${course.modules.length} &middot; ${UI.escapeHtml(course.name)}</span>
+        <h2 style="margin-top:6px;">${UI.escapeHtml(mod.title)}</h2>
+        <div class="progress-row mt-8" style="max-width:320px;">
+          <div class="progress-track"><div class="progress-fill" style="width:${progress.percentage}%;"></div></div>
+          <span class="progress-pct">${progress.percentage}%</span>
+        </div>
+
+        ${mod.videoId ? `
+        <div class="video-wrap mt-24">
+          <iframe src="https://www.youtube.com/embed/${mod.videoId}" title="${UI.escapeHtml(mod.videoTitle || mod.title)}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
+        </div>
+        ${mod.videoTitle ? `<p class="muted" style="font-size:.82rem; margin-top:8px;">${UI.escapeHtml(mod.videoTitle)}</p>` : ''}
+        ` : ''}
+
+        <div class="card card-pad mt-16">
+          <p style="font-size:.98rem; line-height:1.7; margin:0;">${UI.escapeHtml(mod.content)}</p>
+        </div>
+
+        ${materials.length ? `
+        <div class="mt-24">
+          <h4 style="font-size:.95rem; margin-bottom:10px;">Materials &amp; further reading</h4>
+          <div class="materials-list">
+            ${materials.map(m => `
+              <a href="${m.url}" target="_blank" rel="noopener" class="material-link">
+                <span class="material-icon">&#128279;</span>
+                <span>${UI.escapeHtml(m.title)}</span>
+              </a>`).join('')}
+          </div>
+        </div>` : ''}
+
+        <div class="flex justify-between mt-24" style="flex-wrap:wrap; gap:12px;">
+          <button class="btn ${isDone ? 'btn-outline' : 'btn-primary'}" id="complete-btn" ${isDone ? 'disabled' : ''}>${isDone ? 'Module completed ✓' : 'Mark module as completed'}</button>
+          ${next ? `<a href="course-content.html?courseId=${courseId}&moduleId=${next.id}" class="btn btn-outline">Next module &rarr;</a>` : `<a href="${progress.percentage === 100 ? `certificate.html?courseId=${courseId}` : `progress.html`}" class="btn btn-amber">${progress.percentage === 100 ? 'View certificate' : 'View progress'}</a>`}
+        </div>
+      `;
+    }
+
+    function render() {
+      wrap.innerHTML = `
+        <div class="section-title"><div><span class="eyebrow">Learning Management</span><h2 style="margin-top:4px;">${UI.escapeHtml(course.name)}</h2></div>
+          <div class="flex" style="gap:14px; align-items:center;">
+            ${course.pdfPath ? `<a href="${course.pdfPath}" target="_blank" class="btn btn-outline btn-sm">&#128196; Course handout (PDF)</a>` : ''}
+            <a href="my-courses.html" class="muted" style="font-size:.86rem;">&larr; My courses</a>
+          </div>
+        </div>
+        <div class="with-sidebar">
+          <div class="card sidebar-card" id="sidebar"></div>
+          <div class="card card-pad" id="main"></div>
+        </div>
+        <div class="card card-pad mt-24">
+          <h4 style="font-size:.95rem; margin-bottom:10px;">Course discussion &middot; live chat</h4>
+          <div id="chat-log" style="max-height:260px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; font-size:.88rem;"></div>
+          <form id="chat-form" class="flex gap-8">
+            <input id="chat-input" type="text" placeholder="Ask a question or say hi to other students…" style="flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px;">
+            <button type="submit" class="btn btn-primary btn-sm">Send</button>
+          </form>
+        </div>`;
+      document.getElementById('sidebar').innerHTML = renderSidebar();
+      document.getElementById('main').innerHTML = renderMain();
+
+      const btn = document.getElementById('complete-btn');
+      if (btn && !btn.disabled) {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true; btn.textContent = 'Saving…';
+          const r = await Api.completeModule(user.id, courseId, moduleId);
+          progress = r.data;
+          UI.toast(progress.percentage === 100 ? 'Course complete — certificate unlocked!' : 'Module marked complete.');
+          render();
+        });
+      }
+
+      setupChat();
+    }
+
+    // ---------- real-time course discussion (Socket.IO) ----------
+    function chatRow(m) {
+      const mine = m.userId === user.id;
+      return `<div style="margin-bottom:8px; ${mine ? 'text-align:right;' : ''}">
+        <span style="font-weight:600; color:${mine ? '#1d4ed8' : '#334155'};">${UI.escapeHtml(m.userName)}</span>
+        <span class="muted" style="font-size:.75rem; margin-left:6px;">${UI.timeAgo(m.date)}</span>
+        <div>${UI.escapeHtml(m.text)}</div>
+      </div>`;
+    }
+    async function setupChat() {
+      const log = document.getElementById('chat-log');
+      const form = document.getElementById('chat-form');
+      const input = document.getElementById('chat-input');
+      if (!log || !form) return;
+
+      const historyRes = await fetch(`/api/messages/${courseId}`, { headers: { Authorization: 'Bearer ' + Api.getSession().token } });
+      const history = historyRes.ok ? await historyRes.json() : [];
+      log.innerHTML = history.map(chatRow).join('') || `<p class="muted" style="font-size:.85rem;">No messages yet — start the conversation.</p>`;
+      log.scrollTop = log.scrollHeight;
+
+      const socket = Api.getSocket();
+      if (socket) {
+        socket.emit('join-course', courseId);
+        socket.off('chat-message'); // avoid stacking listeners across re-renders
+        socket.on('chat-message', (m) => {
+          if (m.courseId !== courseId) return;
+          log.insertAdjacentHTML('beforeend', chatRow(m));
+          log.scrollTop = log.scrollHeight;
+        });
+      }
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text || !socket) return;
+        socket.emit('chat-message', { courseId, text });
+        input.value = '';
+      });
+    }
+
+    render();
+  })();
+</script>
+</body>
+</html>

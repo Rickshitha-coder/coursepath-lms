@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edit course — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin-courses">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container" style="max-width:640px;">
+      <div class="section-title"><div><span class="eyebrow">Course Management</span><h2 style="margin-top:4px;">Edit course</h2></div></div>
+      <div class="card card-pad" id="form-card">Loading…</div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/validation.js"></script>
+<script>
+  (async () => {
+    const admin = Api.requireRole('admin');
+    if (!admin) return;
+    const id = new URLSearchParams(location.search).get('id');
+    const res = await Api.getCourse(id);
+    const card = document.getElementById('form-card');
+    if (!res.ok) { card.innerHTML = `<div class="empty-state"><h3>Course not found</h3></div>`; return; }
+    const c = res.data;
+
+    card.innerHTML = `
+      <div id="alert-mount"></div>
+      <form id="course-form" novalidate>
+        <div class="field-row">
+          <div class="field" data-field="name"><label for="name">Course name</label><input id="name" name="name"><div class="error">Enter a course name.</div></div>
+        </div>
+        <div class="field-row">
+          <div class="field" data-field="instructor"><label for="instructor">Instructor</label><input id="instructor" name="instructor"><div class="error">Enter an instructor name.</div></div>
+          <div class="field" data-field="duration"><label for="duration">Duration (weeks)</label><input id="duration" name="duration" type="number" min="1"><div class="error">Enter a valid duration.</div></div>
+        </div>
+        <div class="field" data-field="category">
+          <label for="category">Category</label>
+          <select id="category" name="category">
+            <option>Web</option><option>Programming</option><option>AI</option><option>Databases</option><option>Design</option><option>Other</option>
+          </select>
+          <div class="error">Select a category.</div>
+        </div>
+        <div class="field" data-field="description"><label for="description">Description</label><textarea id="description" name="description" rows="3"></textarea><div class="error">Add a short description.</div></div>
+
+        <div class="field">
+          <label>Modules</label>
+          <div id="modules-list"></div>
+          <button type="button" class="btn btn-outline btn-sm mt-8" id="add-module-btn">+ Add module</button>
+        </div>
+
+        <div class="flex gap-12 mt-16">
+          <button type="submit" class="btn btn-primary" style="flex:1;">Save changes</button>
+          <a href="admin-courses.html" class="btn btn-outline">Cancel</a>
+        </div>
+      </form>`;
+
+    const form = document.getElementById('course-form');
+    form.name.value = c.name; form.instructor.value = c.instructor; form.duration.value = c.duration;
+    form.category.value = c.category; form.description.value = c.description;
+
+    function addModuleRow(mod) {
+      const list = document.getElementById('modules-list');
+      const row = document.createElement('div');
+      row.className = 'flex gap-8 mt-8';
+      row.dataset.id = mod && mod.id ? mod.id : '';
+      row.innerHTML = `<input type="text" class="module-input" placeholder="Module title" value="${mod ? UI.escapeHtml(mod.title) : ''}" style="flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px;"><button type="button" class="btn btn-outline btn-sm remove-module">&times;</button>`;
+      row.querySelector('.remove-module').addEventListener('click', () => row.remove());
+      list.appendChild(row);
+    }
+    c.modules.forEach(addModuleRow);
+    document.getElementById('add-module-btn').addEventListener('click', () => addModuleRow(null));
+
+    Validate.attach(form, [
+      { selector: '#name', test: v => Validate.required(v), message: 'Enter a course name.' },
+      { selector: '#instructor', test: v => Validate.required(v), message: 'Enter an instructor name.' },
+      { selector: '#duration', test: v => Number(v) > 0, message: 'Enter a valid duration.' },
+      { selector: '#category', test: v => Validate.required(v), message: 'Select a category.' },
+      { selector: '#description', test: v => Validate.required(v), message: 'Add a short description.' },
+    ]);
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = form.name.value.trim(), instructor = form.instructor.value.trim(),
+            duration = Number(form.duration.value), category = form.category.value,
+            description = form.description.value.trim();
+      if (!name || !instructor || !(duration > 0) || !category || !description) return;
+
+      const modules = [...document.querySelectorAll('#modules-list > div')].map(row => {
+        const title = row.querySelector('.module-input').value.trim();
+        if (!title) return null;
+        return row.dataset.id ? { id: row.dataset.id, title } : title;
+      }).filter(Boolean);
+      if (!modules.length) { UI.toast('Add at least one module.'); return; }
+
+      const res = await Api.updateCourse(id, { name, instructor, duration, category, description, modules });
+      if (!res.ok) { document.getElementById('alert-mount').innerHTML = `<div class="alert alert-error">${UI.escapeHtml(res.error)}</div>`; return; }
+      UI.toast('Course updated.');
+      setTimeout(() => window.location.href = 'admin-courses.html', 600);
+    });
+  })();
+</script>
+</body>
+</html>

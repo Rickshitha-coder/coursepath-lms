@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage courses — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="admin-courses">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title">
+        <div><span class="eyebrow">Course Management</span><h2 style="margin-top:4px;">Manage courses</h2></div>
+        <a href="add-course.html" class="btn btn-amber">Add course</a>
+      </div>
+      <div class="card">
+        <div class="table-scroll">
+        <table class="data">
+          <thead><tr><th>Course</th><th>Instructor</th><th>Category</th><th>Modules</th><th>Enrolled</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const admin = Api.requireRole('admin');
+    if (!admin) return;
+
+    async function render() {
+      const courses = (await Api.listCourses()).data;
+      const stats = (await Api.adminStats()).data;
+      const rows = document.getElementById('rows');
+      if (!courses.length) { rows.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center; padding:30px;">No courses yet — add your first one.</td></tr>`; return; }
+      rows.innerHTML = courses.map(c => {
+        const s = stats.perCourse.find(p => p.name === c.name) || { enrolled: 0 };
+        return `
+        <tr>
+          <td>${UI.escapeHtml(c.name)}</td>
+          <td>${UI.escapeHtml(c.instructor)}</td>
+          <td>${UI.escapeHtml(c.category)}</td>
+          <td>${c.modules.length}</td>
+          <td>${s.enrolled}</td>
+          <td class="flex gap-8">
+            <a href="edit-course.html?id=${c.id}" class="btn btn-outline btn-sm">Edit</a>
+            <button class="btn btn-danger btn-sm" data-del="${c.id}">Delete</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      rows.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', async () => {
+        if (!confirm('Delete this course? Enrollments and progress for it will also be removed.')) return;
+        await Api.deleteCourse(btn.dataset.del);
+        UI.toast('Course deleted.');
+        render();
+      }));
+    }
+    render();
+  })();
+</script>
+</body>
+</html>

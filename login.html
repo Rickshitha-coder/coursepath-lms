@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="login">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container" style="max-width:460px;">
+      <div class="text-center" style="margin-bottom:24px;">
+        <span class="eyebrow">Student Login</span>
+        <h2 style="margin-top:6px;">Welcome back</h2>
+        <p class="muted" style="font-size:.92rem;">Sign in to continue your courses, or use the admin demo account below.</p>
+      </div>
+
+      <div class="card card-pad form-card" style="margin:0;">
+        <div id="alert-mount"></div>
+        <form id="login-form" novalidate>
+          <div class="field" data-field="email">
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+            <div class="error">Enter a valid email address.</div>
+          </div>
+          <div class="field" data-field="password">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Your password" autocomplete="current-password">
+            <div class="error">Enter your password.</div>
+          </div>
+          <div class="flex justify-between items-center" style="margin-bottom:16px;">
+            <span></span>
+            <a href="forgot-password.html" style="font-size:.84rem; color:var(--indigo);">Forgot password?</a>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Log in</button>
+        </form>
+        <p class="form-foot">New to Coursepath? <a href="register.html" style="color:var(--indigo); font-weight:600;">Create an account</a></p>
+      </div>
+
+      <div class="card card-pad mt-16" style="background:var(--paper-dim); border-style:dashed;">
+        <p class="eyebrow" style="margin-bottom:6px;">Demo admin login</p>
+        <p style="font-size:.86rem; margin:0;" class="muted">Email: <code>admin@coursepath.edu</code> &middot; Password: <code>Admin@123</code></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/validation.js"></script>
+<script>
+  if (new URLSearchParams(location.search).get('registered')) {
+    document.getElementById('alert-mount').innerHTML = `<div class="alert alert-success">Account created — log in to continue.</div>`;
+  }
+
+  const form = document.getElementById('login-form');
+  Validate.attach(form, [
+    { selector: '#email', test: v => Validate.required(v) && Validate.email(v), message: 'Enter a valid email address.' },
+    { selector: '#password', test: v => Validate.required(v), message: 'Enter your password.' },
+  ]);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = form.email.value.trim(), password = form.password.value;
+    if (!email || !Validate.email(email) || !password) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    const res = await Api.login({ email, password });
+    btn.disabled = false; btn.textContent = 'Log in';
+
+    if (!res.ok) {
+      document.getElementById('alert-mount').innerHTML = `<div class="alert alert-error">${UI.escapeHtml(res.error)}</div>`;
+      return;
+    }
+    window.location.href = res.data.role === 'admin' ? 'admin-dashboard.html' : 'student-dashboard.html';
+  });
+</script>
+</body>
+</html>

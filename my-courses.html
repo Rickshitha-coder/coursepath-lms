@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My courses — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="my-courses">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title">
+        <div><span class="eyebrow">Course Catalog</span><h2 style="margin-top:4px;">My courses</h2></div>
+        <a href="browse-courses.html" class="btn btn-outline">Browse more courses</a>
+      </div>
+      <div class="course-grid" id="grid"></div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const user = Api.requireRole('student');
+    if (!user) return;
+    const enrollments = (await Api.myEnrollments(user.id)).data;
+    const progressAll = (await Api.allProgressForStudent(user.id)).data;
+    const grid = document.getElementById('grid');
+
+    if (!enrollments.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>You haven't enrolled in any courses yet</h3><p>Once you enroll, they'll show up here with your progress.</p><a href="browse-courses.html" class="btn btn-primary mt-16">Browse courses</a></div>`;
+      return;
+    }
+
+    grid.innerHTML = enrollments.map(e => {
+      const prog = progressAll.find(p => p.courseId === e.courseId) || { percentage: 0, completedModules: [] };
+      const done = prog.completedModules.length;
+      return `
+      <div class="course-card">
+        <div class="cc-top"><span class="cc-cat">${UI.escapeHtml(e.course.category)}</span><h3>${UI.escapeHtml(e.course.name)}</h3></div>
+        <div class="cc-body">
+          ${UI.chainMini(e.course.modules.length, done)}
+          <div class="progress-row"><div class="progress-track"><div class="progress-fill" style="width:${prog.percentage}%;"></div></div><span class="progress-pct">${prog.percentage}%</span></div>
+          <p style="font-size:.82rem;">${done} of ${e.course.modules.length} modules complete</p>
+        </div>
+        <div class="cc-foot">
+          ${prog.percentage === 100 ? `<a href="certificate.html?courseId=${e.courseId}" class="badge badge-done" style="text-decoration:none;">Certificate</a>` : `<span class="muted" style="font-size:.82rem;">Enrolled ${new Date(e.date).toLocaleDateString()}</span>`}
+          <a href="course-content.html?courseId=${e.courseId}" class="btn btn-outline btn-sm">${prog.percentage === 100 ? 'Review' : 'Continue'}</a>
+        </div>
+      </div>`;
+    }).join('');
+  })();
+</script>
+</body>
+</html>

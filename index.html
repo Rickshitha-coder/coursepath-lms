@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coursepath — Student Course Management &amp; Learning Progress Tracking</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="index">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page" style="padding:0;">
+    <section class="hero">
+      <div class="container">
+        <span class="eyebrow">Full Stack Web Development — Course Project</span>
+        <h1>One place to enroll, learn, and track every module you complete.</h1>
+        <p class="lede">Coursepath brings course browsing, enrollment, learning materials, and progress tracking together for students — and gives administrators a clear view of enrollments and completion across every course.</p>
+        <div class="hero-actions">
+          <a href="register.html" class="btn btn-amber">Create a student account</a>
+          <a href="browse-courses.html" class="btn btn-outline" style="border-color:rgba(255,255,255,.3); color:#EDE8DB;">Browse courses</a>
+        </div>
+        <div class="hero-stats" id="home-stats"></div>
+      </div>
+    </section>
+
+    <section class="container" style="margin-top:56px;">
+      <div class="section-title"><h2>Built around the way students actually learn</h2></div>
+      <div class="stat-grid">
+        <div class="card card-pad">
+          <h3 style="font-size:1.05rem;">Browse &amp; enroll</h3>
+          <p class="muted" style="font-size:.9rem;">Search courses by name, instructor, or category, then enroll in one click and get an instant confirmation.</p>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:1.05rem;">Learn module by module</h3>
+          <p class="muted" style="font-size:.9rem;">Every course is broken into modules — HTML, CSS, JavaScript and beyond — worked through one at a time.</p>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:1.05rem;">Track real progress</h3>
+          <p class="muted" style="font-size:.9rem;">A visual syllabus chain and completion percentage make it obvious what's done and what's next.</p>
+        </div>
+        <div class="card card-pad">
+          <h3 style="font-size:1.05rem;">Stay notified</h3>
+          <p class="muted" style="font-size:.9rem;">Enrollment confirmations, new course alerts, and completion certificates land in your notification feed.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="container" style="margin-top:8px;">
+      <div class="section-title">
+        <h2>Open courses</h2>
+        <a href="browse-courses.html" class="muted" style="font-size:.88rem;">View all &rarr;</a>
+      </div>
+      <div class="course-grid" id="home-courses"></div>
+    </section>
+
+    <section class="container card card-pad" style="margin-top:48px; display:flex; gap:24px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
+      <div>
+        <h3 style="font-size:1.2rem;">Administering courses instead?</h3>
+        <p class="muted" style="font-size:.9rem; max-width:46ch;">Manage courses, monitor enrollments, and review completion analytics from the admin dashboard.</p>
+      </div>
+      <a href="login.html" class="btn btn-primary">Admin sign in</a>
+    </section>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const stats = await Api.adminStats();
+    const s = stats.data;
+    document.getElementById('home-stats').innerHTML = `
+      <div class="hero-stat"><b>${s.totalCourses}</b><span>Courses available</span></div>
+      <div class="hero-stat"><b>${s.totalStudents}</b><span>Students enrolled</span></div>
+      <div class="hero-stat"><b>${s.activeEnrollments}</b><span>Active enrollments</span></div>
+      <div class="hero-stat"><b>${s.completionReports}</b><span>Courses completed</span></div>`;
+
+    const courses = (await Api.listCourses()).data.slice(0, 3);
+    document.getElementById('home-courses').innerHTML = courses.map(c => `
+      <div class="course-card">
+        <div class="cc-top"><span class="cc-cat">${UI.escapeHtml(c.category)}</span><h3>${UI.escapeHtml(c.name)}</h3></div>
+        <div class="cc-body">
+          <p>${UI.escapeHtml(c.description)}</p>
+          <div class="cc-meta"><span>${c.duration} weeks</span><span>${c.modules.length} modules</span></div>
+        </div>
+        <div class="cc-foot">
+          <span class="muted" style="font-size:.82rem;">${UI.escapeHtml(c.instructor)}</span>
+          <a href="course-details.html?id=${c.id}" class="btn btn-outline btn-sm">View course</a>
+        </div>
+      </div>`).join('');
+  })();
+</script>
+</body>
+</html>

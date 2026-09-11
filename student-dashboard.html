@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="student-dashboard">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title">
+        <div>
+          <span class="eyebrow">Student Dashboard</span>
+          <h2 id="greeting" style="margin-top:4px;">Welcome back</h2>
+        </div>
+        <a href="browse-courses.html" class="btn btn-amber">Browse courses</a>
+      </div>
+
+      <div class="stat-grid" id="stat-grid"></div>
+
+      <div class="section-title" style="margin-top:8px;">
+        <h2>Continue learning</h2>
+        <a href="my-courses.html" class="muted" style="font-size:.88rem;">View all &rarr;</a>
+      </div>
+      <div id="continue-list"></div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const user = Api.requireRole('student');
+    if (!user) return;
+    document.getElementById('greeting').textContent = `Welcome back, ${user.name.split(' ')[0]}`;
+
+    const enrollments = (await Api.myEnrollments(user.id)).data;
+    const progressAll = (await Api.allProgressForStudent(user.id)).data;
+    const completed = progressAll.filter(p => p.percentage === 100).length;
+    const ongoing = enrollments.length - completed;
+    const avg = progressAll.length ? Math.round(progressAll.reduce((s, p) => s + p.percentage, 0) / progressAll.length) : 0;
+
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Courses enrolled</div><div class="stat-value">${enrollments.length}</div></div>
+      <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value">${completed}</div></div>
+      <div class="stat-card"><div class="stat-label">Ongoing</div><div class="stat-value">${ongoing}</div></div>
+      <div class="stat-card accent"><div class="stat-label">Average progress</div><div class="stat-value">${avg}%</div></div>`;
+
+    const list = document.getElementById('continue-list');
+    if (!enrollments.length) {
+      list.innerHTML = `<div class="card empty-state"><h3>No courses yet</h3><p>Browse the catalog and enroll in your first course.</p><a href="browse-courses.html" class="btn btn-primary mt-16">Browse courses</a></div>`;
+      return;
+    }
+    list.innerHTML = `<div class="card">` + enrollments.map(e => {
+      const prog = progressAll.find(p => p.courseId === e.courseId) || { percentage: 0, completedModules: [] };
+      return `
+      <div class="flex items-center justify-between" style="padding:18px 22px; border-bottom:1px solid var(--line);">
+        <div style="flex:1; min-width:0;">
+          <h4 style="margin:0 0 6px; font-size:1.02rem;">${UI.escapeHtml(e.course.name)}</h4>
+          <div class="progress-row" style="max-width:340px;">
+            <div class="progress-track"><div class="progress-fill" style="width:${prog.percentage}%;"></div></div>
+            <span class="progress-pct">${prog.percentage}%</span>
+          </div>
+        </div>
+        <a href="course-content.html?courseId=${e.courseId}" class="btn btn-outline btn-sm" style="margin-left:20px;">${prog.percentage === 100 ? 'Review' : 'Continue'}</a>
+      </div>`;
+    }).join('') + `</div>`;
+  })();
+</script>
+</body>
+</html>

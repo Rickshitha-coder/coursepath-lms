@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My progress — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="progress">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container">
+      <div class="section-title"><div><span class="eyebrow">Progress Tracking</span><h2 style="margin-top:4px;">My progress</h2></div></div>
+      <div id="content"></div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  (async () => {
+    const user = Api.requireRole('student');
+    if (!user) return;
+    const enrollments = (await Api.myEnrollments(user.id)).data;
+    const progressAll = (await Api.allProgressForStudent(user.id)).data;
+    const content = document.getElementById('content');
+
+    if (!enrollments.length) {
+      content.innerHTML = `<div class="empty-state"><h3>Nothing to track yet</h3><p>Enroll in a course to start building your progress chain.</p><a href="browse-courses.html" class="btn btn-primary mt-16">Browse courses</a></div>`;
+      return;
+    }
+
+    content.innerHTML = enrollments.map(e => {
+      const prog = progressAll.find(p => p.courseId === e.courseId) || { percentage: 0, completedModules: [] };
+      const rows = e.course.modules.map((m, i) => {
+        const done = prog.completedModules.includes(m.id);
+        const isLast = i === e.course.modules.length - 1;
+        return `
+        <div class="chain-row">
+          <div class="rail">
+            <div class="node-lg ${done ? 'done' : ''}">${done ? '✓' : i + 1}</div>
+            ${!isLast ? `<div class="rail-line ${done ? 'done' : ''}"></div>` : ''}
+          </div>
+          <div class="chain-item">
+            <h4>${UI.escapeHtml(m.title)}</h4>
+            <span class="muted" style="font-size:.82rem;">${done ? 'Completed' : 'Pending'}</span>
+          </div>
+        </div>`;
+      }).join('');
+
+      return `
+      <div class="card card-pad mt-24">
+        <div class="flex justify-between items-center" style="flex-wrap:wrap; gap:10px;">
+          <div>
+            <h3 style="font-size:1.1rem;">${UI.escapeHtml(e.course.name)}</h3>
+            <span class="muted" style="font-size:.84rem;">${prog.completedModules.length} of ${e.course.modules.length} modules complete</span>
+          </div>
+          <div class="progress-row" style="width:220px;">
+            <div class="progress-track"><div class="progress-fill" style="width:${prog.percentage}%;"></div></div>
+            <span class="progress-pct">${prog.percentage}%</span>
+          </div>
+        </div>
+        <div class="chain-full mt-16">${rows}</div>
+        ${prog.percentage === 100 ? `<a href="certificate.html?courseId=${e.courseId}" class="btn btn-amber">View certificate</a>` : `<a href="course-content.html?courseId=${e.courseId}" class="btn btn-outline">Continue learning</a>`}
+      </div>`;
+    }).join('');
+  })();
+</script>
+</body>
+</html>

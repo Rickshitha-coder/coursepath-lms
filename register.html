@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register — Coursepath</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="register">
+<div class="shell">
+  <div id="navbar-mount"></div>
+
+  <main class="page">
+    <div class="container" style="max-width:520px;">
+      <div class="text-center" style="margin-bottom:24px;">
+        <span class="eyebrow">Create Account</span>
+        <h2 style="margin-top:6px;">Create your student account</h2>
+        <p class="muted" style="font-size:.92rem;">Takes under a minute. You'll use this to browse, enroll, and track progress.</p>
+      </div>
+
+      <div class="card card-pad form-card" style="margin:0;">
+        <div id="alert-mount"></div>
+        <form id="register-form" novalidate>
+          <div class="field" data-field="name">
+            <label for="name">Full name</label>
+            <input type="text" id="name" name="name" placeholder="Ananya Sharma" autocomplete="name">
+            <div class="error">Enter your full name.</div>
+          </div>
+          <div class="field" data-field="email">
+            <label for="email">Email address</label>
+            <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+            <div class="error">Enter a valid email address.</div>
+          </div>
+          <div class="field" data-field="department">
+            <label for="department">Department</label>
+            <select id="department" name="department">
+              <option value="">Select a department</option>
+              <option>Computer Science</option>
+              <option>Information Technology</option>
+              <option>Electronics</option>
+              <option>Mechanical</option>
+              <option>Business Administration</option>
+              <option>Other</option>
+            </select>
+            <div class="error">Select a department.</div>
+          </div>
+          <div class="field" data-field="password">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+            <div class="hint">Use 8+ characters. Mix letters and numbers for a stronger password.</div>
+            <div class="error">Password must be at least 8 characters.</div>
+          </div>
+          <div class="field" data-field="confirm">
+            <label for="confirm">Confirm password</label>
+            <input type="password" id="confirm" name="confirm" placeholder="Re-enter your password" autocomplete="new-password">
+            <div class="error">Passwords don't match.</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" id="submit-btn">Create account</button>
+        </form>
+        <p class="form-foot">Already have an account? <a href="login.html" style="color:var(--indigo); font-weight:600;">Log in</a></p>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/api.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/validation.js"></script>
+<script>
+  const form = document.getElementById('register-form');
+
+  Validate.attach(form, [
+    { selector: '#name', test: v => Validate.required(v), message: 'Enter your full name.' },
+    { selector: '#email', test: v => Validate.required(v) && Validate.email(v), message: 'Enter a valid email address.' },
+    { selector: '#department', test: v => Validate.required(v), message: 'Select a department.' },
+    { selector: '#password', test: v => Validate.minLen(v, 8), message: 'Password must be at least 8 characters.' },
+    { selector: '#confirm', test: (v, f) => Validate.matches(v, f.querySelector('#password').value), message: "Passwords don't match." },
+  ]);
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // re-run validation (attach() already blocked submit if invalid via its own listener order)
+    const name = form.name.value.trim(), email = form.email.value.trim(),
+          department = form.department.value, password = form.password.value, confirm = form.confirm.value;
+
+    if (!name || !email || !Validate.email(email) || !department || password.length < 8 || password !== confirm) return;
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Creating account…';
+    const res = await Api.register({ name, email, password, department });
+    btn.disabled = false; btn.textContent = 'Create account';
+
+    const mount = document.getElementById('alert-mount');
+    if (!res.ok) {
+      mount.innerHTML = `<div class="alert alert-error">${UI.escapeHtml(res.error)}</div>`;
+      return;
+    }
+    mount.innerHTML = `<div class="alert alert-success">Account created — redirecting to login…</div>`;
+    setTimeout(() => window.location.href = 'login.html?registered=1', 900);
+  });
+</script>
+</body>
+</html>
